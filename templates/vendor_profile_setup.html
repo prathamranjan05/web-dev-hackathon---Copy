@@ -1,0 +1,237 @@
+<!-- templates/vendor_profile_setup.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Profile Setup</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f2f5;
+            margin: 0;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 550px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 1.8em;
+            font-weight: 600;
+        }
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        input[type="text"], textarea, input[type="time"] {
+            width: calc(100% - 24px);
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 10px 0;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #f8f8f8;
+            cursor: pointer;
+        }
+        .time-inputs {
+            display: flex;
+            gap: 15px;
+        }
+        .time-inputs > div {
+            flex: 1;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            width: 100%;
+            transition: background-color 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .flash-messages {
+            margin-bottom: 20px;
+            padding: 0;
+            list-style: none;
+            text-align: left;
+        }
+        .flash-messages li {
+            background-color: #fff3e0;
+            border: 1px solid #ffcc80;
+            padding: 10px 15px;
+            border-radius: 8px;
+            color: #e65100;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .checkbox-group label {
+            background-color: #e9ecef;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            font-weight: normal;
+            color: #495057;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .checkbox-group input[type="checkbox"] {
+            display: none;
+        }
+        .checkbox-group input[type="checkbox"]:checked + label {
+            background-color: #28a745; /* Green for selected */
+            color: white;
+        }
+        .current-menu-picture {
+            margin-top: 15px;
+            text-align: center;
+        }
+        .current-menu-picture img {
+            max-width: 150px;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Set Up Your Vendor Profile</h2>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flash-messages">
+                    {% for category, message in messages %}
+                        <li class="{{ category }}">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+        <form method="POST" action="{{ url_for('vendor_profile_setup') }}" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="shop_name">Shop Name:</label>
+                <input type="text" id="shop_name" name="shop_name" value="{{ vendor.shop_name or '' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description:</label>
+                <textarea id="description" name="description" rows="4">{{ vendor.description or '' }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="food_type">Food Type / Cuisine (select all that apply):</label>
+                <div class="checkbox-group">
+                    {% set vendor_food_types = vendor.food_type.split(',') if vendor.food_type else [] %}
+                    <input type="checkbox" id="v_indian" name="food_type_checkbox" value="Indian" {% if 'Indian' in vendor_food_types %}checked{% endif %}>
+                    <label for="v_indian">Indian</label>
+                    <input type="checkbox" id="v_chinese" name="food_type_checkbox" value="Chinese" {% if 'Chinese' in vendor_food_types %}checked{% endif %}>
+                    <label for="v_chinese">Chinese</label>
+                    <input type="checkbox" id="v_mexican" name="food_type_checkbox" value="Mexican" {% if 'Mexican' in vendor_food_types %}checked{% endif %}>
+                    <label for="v_mexican">Mexican</label>
+                    <input type="checkbox" id="v_italian" name="food_type_checkbox" value="Italian" {% if 'Italian' in vendor_food_types %}checked{% endif %}>
+                    <label for="v_italian">Italian</label>
+                    <input type="checkbox" id="v_vegan" name="food_type_checkbox" value="Vegan" {% if 'Vegan' in vendor_food_types %}checked{% endif %}>
+                    <label for="v_vegan">Vegan</label>
+                    <input type="checkbox" id="v_vegetarian" name="food_type_checkbox" value="Vegetarian" {% if 'Vegetarian' in vendor_food_types %}checked{% endif %}>
+                    <label for="v_vegetarian">Vegetarian</label>
+                    <input type="checkbox" id="v_fastfood" name="food_type_checkbox" value="Fast Food" {% if 'Fast Food' in vendor_food_types %}checked{% endif %}>
+                    <label for="v_fastfood">Fast Food</label>
+                    <input type="checkbox" id="v_desserts" name="food_type_checkbox" value="Desserts" {% if 'Desserts' in vendor_food_types %}checked{% endif %}>
+                    <label for="v_desserts">Desserts</label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="menu_picture">Menu Picture:</label>
+                <input type="file" id="menu_picture" name="menu_picture" accept="image/*">
+                {% if menu_picture_base64 %}
+                    <div class="current-menu-picture">
+                        <p>Current Menu Picture:</p>
+                        <img src="data:image/jpeg;base64,{{ menu_picture_base64 }}" alt="Current Menu Picture">
+                        <p style="font-size: 0.9em; color: #666; margin-top: 5px;">Upload new file to replace.</p>
+                    </div>
+                {% else %}
+                    <p style="margin-top: 10px; font-size: 0.9em; color: #666;">No menu picture uploaded yet.</p>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label>Working Hours:</label>
+                <div class="time-inputs">
+                    <div>
+                        <label for="working_hours_start">From:</label>
+                        <input type="time" id="working_hours_start" name="working_hours_start" value="{{ vendor.working_hours_start or '09:00' }}" required>
+                    </div>
+                    <div>
+                        <label for="working_hours_end">To:</label>
+                        <input type="time" id="working_hours_end" name="working_hours_end" value="{{ vendor.working_hours_end or '17:00' }}" required>
+                    </div>
+                </div>
+            </div>
+            
+            <button type="submit">Save Shop Details</button>
+        </form>
+    </div>
+
+    <script>
+        // Changed name to avoid conflict with hidden input
+        const foodTypeCheckboxes = document.querySelectorAll('input[name="food_type_checkbox"]');
+
+        // Handle form submission to combine selected food types
+        document.querySelector('form').addEventListener('submit', function(event) {
+            const selectedFoodTypes = Array.from(foodTypeCheckboxes)
+                                            .filter(checkbox => checkbox.checked)
+                                            .map(checkbox => checkbox.value)
+                                            .join(',');
+            
+            // Create a hidden input to send combined preferences
+            let hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'food_type'; // Name matches Flask form field
+            hiddenInput.value = selectedFoodTypes;
+            this.appendChild(hiddenInput);
+        });
+    </script>
+</body>
+</html>

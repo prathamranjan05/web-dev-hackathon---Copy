@@ -1,0 +1,275 @@
+<!-- templates/vendor_live_tracking.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Live Tracking</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f2f5;
+            margin: 0;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 1.8em;
+            font-weight: 600;
+        }
+        p {
+            color: #555;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+            margin-bottom: 20px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #28a745; /* Green when online */
+        }
+        input:focus + .slider {
+            box-shadow: 0 0 1px #28a745;
+        }
+        input:checked + .slider:before {
+            -webkit-transform: translateX(26px);
+            -ms-transform: translateX(26px);
+            transform: translateX(26px);
+        }
+        .location-status {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .flash-messages {
+            margin-bottom: 20px;
+            padding: 0;
+            list-style: none;
+            text-align: left;
+        }
+        .flash-messages li {
+            background-color: #fff3e0;
+            border: 1px solid #ffcc80;
+            padding: 10px 15px;
+            border-radius: 8px;
+            color: #e65100;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+        .actions {
+            margin-top: 30px;
+        }
+        .actions a {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+        }
+        .actions a:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Vendor Live Tracking</h2>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flash-messages">
+                    {% for category, message in messages %}
+                        <li class="{{ category }}">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        <p>Toggle the switch to go online and share your live location with users.</p>
+        
+        <label class="toggle-switch">
+            <input type="checkbox" id="onlineToggle" {{ 'checked' if vendor.is_online else '' }}>
+            <span class="slider"></span>
+        </label>
+        <p id="statusText">{{ 'You are currently ONLINE.' if vendor.is_online else 'You are currently OFFLINE.' }}</p>
+
+        <div class="location-status" id="locationStatus">
+            {% if vendor.current_latitude and vendor.current_longitude %}
+                Current Location: Lat {{ vendor.current_latitude | round(4) }}, Lng {{ vendor.current_longitude | round(4) }}
+            {% else %}
+                Location not yet available.
+            {% endif %}
+        </div>
+
+        <div class="actions">
+            <a href="{{ url_for('vendor_profile_setup') }}">Update Shop Details</a>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </div>
+
+    <script>
+        const onlineToggle = document.getElementById('onlineToggle');
+        const statusText = document.getElementById('statusText');
+        const locationStatusDiv = document.getElementById('locationStatus');
+        let watchId; // To store the watchPosition ID
+
+        // Function to update vendor location on backend
+        async function updateVendorLocation(latitude, longitude, isOnline) {
+            try {
+                const response = await fetch('/api/update-vendor-location', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        latitude: latitude,
+                        longitude: longitude,
+                        is_online: isOnline
+                    })
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    console.log("Vendor location and status updated on backend.");
+                } else {
+                    console.error("Failed to update vendor location on backend:", data.message);
+                }
+            } catch (error) {
+                console.error("Error sending location to backend:", error);
+            }
+        }
+
+        // Function to start watching position
+        function startTracking() {
+            if (navigator.geolocation) {
+                locationStatusDiv.textContent = "Attempting to get your live location...";
+                watchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        locationStatusDiv.textContent = `Live Location: Lat ${lat.toFixed(4)}, Lng ${lng.toFixed(4)}`;
+                        locationStatusDiv.style.color = '#28a745'; // Green for success
+                        updateVendorLocation(lat, lng, true); // Update backend with live location and online status
+                    },
+                    (error) => {
+                        let message = "Unable to retrieve your live location.";
+                        switch(error.code) {
+                            case error.PERMISSION_DENIED:
+                                message = "Location access denied. Please enable location services for this site.";
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                message = "Location information is unavailable.";
+                                break;
+                            case error.TIMEOUT:
+                                message = "The request to get user location timed out.";
+                                break;
+                            case error.UNKNOWN_ERROR:
+                                message = "An unknown error occurred while getting location.";
+                                break;
+                        }
+                        locationStatusDiv.textContent = message;
+                        locationStatusDiv.style.color = '#dc3545'; // Red for error
+                        console.error("Geolocation error:", error);
+                        // If there's an error, automatically turn off tracking
+                        onlineToggle.checked = false;
+                        statusText.textContent = "You are currently OFFLINE.";
+                        updateVendorLocation(null, null, false); // Set offline on backend
+                    },
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 } // High accuracy, 5s timeout, no cache
+                );
+            } else {
+                locationStatusDiv.textContent = "Geolocation is not supported by your browser.";
+                locationStatusDiv.style.color = '#dc3545';
+                onlineToggle.checked = false;
+                statusText.textContent = "You are currently OFFLINE.";
+            }
+        }
+
+        // Function to stop watching position
+        function stopTracking() {
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+            locationStatusDiv.textContent = "Location tracking stopped.";
+            locationStatusDiv.style.color = '#665';
+            updateVendorLocation(null, null, false); // Set offline on backend
+        }
+
+        // Event listener for the toggle switch
+        onlineToggle.addEventListener('change', () => {
+            if (onlineToggle.checked) {
+                statusText.textContent = "You are currently ONLINE.";
+                startTracking();
+            } else {
+                statusText.textContent = "You are currently OFFLINE.";
+                stopTracking();
+            }
+        });
+
+        // Initial check on page load based on current status
+        window.onload = () => {
+            if (onlineToggle.checked) {
+                startTracking();
+            } else {
+                // Ensure backend is set to offline if toggle is off on load
+                updateVendorLocation(null, null, false);
+            }
+        };
+
+        // Ensure tracking stops if user navigates away or closes tab
+        window.addEventListener('beforeunload', () => {
+            if (onlineToggle.checked) {
+                stopTracking();
+            }
+        });
+    </script>
+</body>
+</html>

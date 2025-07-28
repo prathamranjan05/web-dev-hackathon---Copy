@@ -1,0 +1,322 @@
+<!-- templates/verify_phone_firebase.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Phone - Firebase</title>
+    <!-- Firebase SDKs - Using latest compat version for reCAPTCHA -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <!-- Explicitly load reCAPTCHA v2 API script -->
+    <!-- The 'onload=recaptchaLoaded' ensures our JS runs only after grecaptcha is ready -->
+    <script src="https://www.google.com/recaptcha/api.js?onload=recaptchaLoaded&render=explicit" async defer></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f2f5;
+            margin: 0;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            font-weight: 600;
+        }
+        p {
+            color: #555;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+        input[type="text"] {
+            width: calc(100% - 24px);
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            width: 100%;
+            transition: background-color 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #resendCodeButton {
+            background-color: #6c757d;
+        }
+        #resendCodeButton:hover {
+            background-color: #5a6268;
+        }
+        .flash-messages {
+            margin-bottom: 20px;
+            padding: 0;
+            list-style: none;
+            text-align: left;
+        }
+        .flash-messages li {
+            background-color: #fff3e0;
+            border: 1px solid #ffcc80;
+            padding: 10px 15px;
+            border-radius: 8px;
+            color: #e65100;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+        #recaptcha-container {
+            margin-top: 25px;
+            display: flex;
+            justify-content: center; /* Center reCAPTCHA */
+        }
+        .status-message {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .success-message {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #a5d6a7;
+        }
+        .error-message {
+            background-color: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Verify Phone Number</h2>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flash-messages">
+                    {% for category, message in messages %}
+                        <li class="{{ category }}">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        <p>A verification code will be sent to <strong>{{ phone }}</strong> for your {{ role }} account. Please complete the reCAPTCHA if prompted.</p>
+        
+        <input type="text" id="verificationCode" placeholder="Enter 6-digit code" maxlength="6">
+        <button id="verifyCodeButton">Verify Code</button>
+        <button id="resendCodeButton">Resend Code</button>
+
+        <!-- reCAPTCHA container -->
+        <div id="recaptcha-container"></div>
+        
+        <div id="statusMessage" class="status-message"></div>
+    </div>
+
+    <script>
+        // Your Firebase configuration - REPLACE WITH YOUR ACTUAL CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyAm-v7W2QDHz2FSfjLnsNRZIWUpvKRkdM8",
+            authDomain: "streetvendorwebapp.firebaseapp.com",
+            projectId: "streetvendorwebapp",
+            storageBucket: "streetvendorwebapp.firebasestorage.app",
+            messagingSenderId: "255315510398",
+            appId: "1:255315510398:web:ca089b5b027afd8796842f",
+            measurementId: "G-13BBXHH1B7"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+
+        console.log("Firebase Config loaded:", firebaseConfig);
+        console.log("Firebase API Key:", firebaseConfig.apiKey);
+        console.log("Phone number from Flask:", "{{ phone }}");
+        console.log("Role from Flask:", "{{ role }}");
+
+        const verificationCodeInput = document.getElementById('verificationCode');
+        const verifyCodeButton = document.getElementById('verifyCodeButton');
+        const resendCodeButton = document.getElementById('resendCodeButton');
+        const statusMessageDiv = document.getElementById('statusMessage');
+        const recaptchaContainer = document.getElementById('recaptcha-container');
+
+        let confirmationResult; // Stores the result of signInWithPhoneNumber
+        let appVerifier; // For reCAPTCHA
+
+        // Get phone and role from Flask context
+        const phoneNumber = "{{ phone }}";
+        const role = "{{ role }}";
+
+        // Flag to ensure sendOtp is only called once after reCAPTCHA is loaded
+        let recaptchaReady = false;
+
+        /**
+         * Callback function called by reCAPTCHA script when it's loaded and ready.
+         * This is crucial for ensuring grecaptcha object is available.
+         */
+        window.recaptchaLoaded = function() {
+            console.log("reCAPTCHA script loaded and grecaptcha object is available.");
+            recaptchaReady = true;
+            // Now that reCAPTCHA is ready, proceed to send OTP
+            sendOtp();
+        };
+
+        /**
+         * Displays a status message to the user.
+         * @param {string} message The message to display.
+         * @param {boolean} isError True if it's an error message, false for success/info.
+         */
+        function showStatus(message, isError = false) {
+            statusMessageDiv.textContent = message;
+            statusMessageDiv.className = `status-message ${isError ? 'error-message' : 'success-message'}`;
+        }
+
+        /**
+         * Initializes and renders the reCAPTCHA verifier, then sends the OTP.
+         */
+        async function sendOtp() {
+            if (!recaptchaReady) {
+                showStatus("Waiting for reCAPTCHA to load...", false);
+                return; // Wait until reCAPTCHA is loaded
+            }
+
+            showStatus("Sending verification code...", false);
+            
+            try {
+                // Ensure reCAPTCHA verifier is initialized only once
+                if (!appVerifier) {
+                    appVerifier = new firebase.auth.RecaptchaVerifier(recaptchaContainer, {
+                        'size': 'invisible', // Use 'invisible' for a cleaner UI, 'normal' for visible
+                        'callback': (response) => {
+                            // reCAPTCHA solved, this callback fires automatically
+                            console.log("reCAPTCHA solved!");
+                        },
+                        'expired-callback': () => {
+                            // reCAPTCHA expired. Prompt user to try again.
+                            showStatus("reCAPTCHA expired. Please try again.", true);
+                            if (appVerifier && appVerifier.widgetId) {
+                                grecaptcha.reset(appVerifier.widgetId);
+                            }
+                        }
+                    });
+                }
+
+                await appVerifier.render(); // Render reCAPTCHA
+                console.log("Attempting to send OTP to:", phoneNumber); // Debugging log
+
+                confirmationResult = await auth.signInWithPhoneNumber(phoneNumber, appVerifier); // Pass appVerifier
+                showStatus("Verification code sent successfully! Check your phone.", false);
+
+                // If reCAPTCHA was visible, reset it after successful send to prevent re-use
+                if (appVerifier.size === 'normal' && appVerifier.widgetId) {
+                    grecaptcha.reset(appVerifier.widgetId);
+                }
+
+            } catch (error) {
+                console.error("Error sending verification code:", error);
+                let errorMessage = `Error sending code: ${error.message}`;
+                if (error.code === 'auth/too-many-requests') {
+                    errorMessage = "Too many requests. Please try again later.";
+                } else if (error.code === 'auth/invalid-phone-number') {
+                    errorMessage = "Invalid phone number format. Please ensure it includes the country code (e.g., +11234567890).";
+                } else if (error.code === 'auth/api-key-not-valid') {
+                    errorMessage = "Firebase API Key is not valid or not configured correctly. Please check Firebase console settings.";
+                } else if (error.code === 'auth/internal-error' && error.message.includes('reCAPTCHA')) {
+                    errorMessage = "reCAPTCHA failed. Please ensure your domain is authorized in Firebase and try again.";
+                }
+                showStatus(errorMessage, true);
+                // Reset reCAPTCHA if there was an error to allow a new attempt
+                if (appVerifier && appVerifier.widgetId) {
+                    grecaptcha.reset(appVerifier.widgetId);
+                }
+            }
+        }
+
+        // Do NOT call sendOtp directly on window.onload anymore.
+        // It will be called by recaptchaLoaded callback.
+
+        /**
+         * Handles the verification of the entered OTP.
+         */
+        verifyCodeButton.addEventListener('click', async () => {
+            const code = verificationCodeInput.value.trim();
+            if (!code) {
+                showStatus("Please enter the 6-digit verification code.", true);
+                return;
+            }
+
+            if (!confirmationResult) {
+                showStatus("No verification request found. Please resend the code.", true);
+                return;
+            }
+
+            showStatus("Verifying code...", false);
+            try {
+                const result = await confirmationResult.confirm(code);
+                const user = result.user;
+
+                showStatus("Phone number verified successfully!", false);
+                console.log("User signed in:", user);
+
+                // Send the Firebase UID, phone number, and role to your Flask backend
+                const response = await fetch('/firebase-auth-success', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        uid: user.uid,
+                        phoneNumber: user.phoneNumber,
+                        role: role // Pass the role back to the Flask backend
+                    })
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    window.location.href = data.redirect_url;
+                } else {
+                    showStatus(`Backend error: ${data.message}`, true);
+                }
+
+            } catch (error) {
+                console.error("Error verifying code:", error);
+                let errorMessage = `Invalid code or error: ${error.message}`;
+                if (error.code === 'auth/invalid-verification-code') {
+                    errorMessage = "The verification code is invalid. Please try again.";
+                } else if (error.code === 'auth/code-expired') {
+                    errorMessage = "The verification code has expired. Please resend.";
+                }
+                showStatus(errorMessage, true);
+            }
+        });
+
+        resendCodeButton.addEventListener('click', sendOtp);
+
+    </script>
+</body>
+</html>

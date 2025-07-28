@@ -1,0 +1,430 @@
+<!-- templates/user_dashboard.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .header {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .header h2 {
+            color: #333;
+            margin: 0;
+            font-size: 2em;
+        }
+        .header .actions a {
+            background-color: #007bff;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.9em;
+            transition: background-color 0.3s ease;
+            margin-left: 10px;
+        }
+        .header .actions a:hover {
+            background-color: #0056b3;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 1200px;
+            box-sizing: border-box;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+        }
+        .vendor-list {
+            flex: 2; /* Takes more space */
+            min-width: 300px; /* Minimum width for list */
+        }
+        .map-container {
+            flex: 3; /* Takes more space */
+            min-width: 400px; /* Minimum width for map */
+            height: 500px; /* Fixed height for the map */
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        .vendor-card {
+            background-color: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: pointer;
+        }
+        .vendor-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+        }
+        .vendor-card h3 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 1.4em;
+            display: flex; /* To align status next to name */
+            align-items: center;
+            justify-content: space-between; /* Push status to right */
+        }
+        .vendor-card p {
+            margin-bottom: 5px;
+            color: #666;
+            font-size: 0.95em;
+        }
+        .vendor-card .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #444;
+        }
+        .vendor-card .rating {
+            color: #ffc107; /* Gold color for stars */
+            font-weight: bold;
+        }
+        .flash-messages {
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 20px;
+            padding: 0;
+            list-style: none;
+            text-align: left;
+        }
+        .flash-messages li {
+            background-color: #fff3e0;
+            border: 1px solid #ffcc80;
+            padding: 10px 15px;
+            border-radius: 8px;
+            color: #e65100;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+        .no-vendors {
+            text-align: center;
+            color: #777;
+            padding: 30px;
+            font-size: 1.1em;
+        }
+        .search-bar {
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 20px;
+        }
+        .search-bar input {
+            width: calc(100% - 24px);
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+        .vendor-card .directions-button {
+            background-color: #28a745; /* Green for directions */
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            margin-top: 10px;
+            transition: background-color 0.3s ease;
+            display: inline-block; /* To allow it to sit next to other elements if needed */
+        }
+        .vendor-card .directions-button:hover {
+            background-color: #218838;
+        }
+        .vendor-status {
+            font-size: 0.75em; /* Slightly smaller for status */
+            font-weight: bold;
+            padding: 3px 8px;
+            border-radius: 5px;
+            margin-left: 10px;
+            white-space: nowrap; /* Prevent wrapping */
+        }
+        .vendor-status.online {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .vendor-status.offline {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            .vendor-list, .map-container {
+                min-width: unset; /* Remove min-width for mobile */
+                width: 100%;
+            }
+            .map-container {
+                height: 350px; /* Adjust map height for mobile */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Nearby Vendors</h2>
+        <div class="actions">
+            <a href="{{ url_for('user_profile_setup') }}">Update Profile</a>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul class="flash-messages">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+    <div class="search-bar">
+        <input type="text" id="vendorSearch" placeholder="Search for shops or cuisine...">
+    </div>
+
+    <div class="container">
+        <div class="vendor-list" id="vendorList">
+            <!-- Vendor cards will be rendered here by JavaScript -->
+            {% if not vendors %}
+                <p class="no-vendors">No vendors found. Try adjusting your radius or check back later!</p>
+            {% endif %}
+        </div>
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <!-- Data embedded directly into JavaScript variables -->
+    <script>
+        let map;
+        let userMarker;
+        const vendorMarkers = {}; // Store vendor markers by ID
+
+        // User's current location directly from Flask context
+        // Use JSON.parse to correctly interpret the JSON string from Jinja's tojson
+        const userLocationParsed = JSON.parse('{{ user_location | tojson }}');
+        const userLat = parseFloat(userLocationParsed.lat);
+        const userLng = parseFloat(userLocationParsed.lng);
+
+        // All vendors data directly from Flask context
+        // Use JSON.parse to correctly interpret the JSON string from Jinja's tojson
+        const allVendorsData = JSON.parse('{{ vendors | tojson }}');
+
+        console.log("User Location Data:", userLocationParsed);
+        console.log("All Vendors Data:", allVendorsData);
+
+
+        const vendorListDiv = document.getElementById('vendorList');
+        const vendorSearchInput = document.getElementById('vendorSearch');
+
+        /**
+         * Renders the list of vendor cards based on the provided vendors array.
+         * @param {Array} vendorsToDisplay - The array of vendor objects to display.
+         */
+        function renderVendorList(vendorsToDisplay) {
+            vendorListDiv.innerHTML = ''; // Clear existing list
+
+            if (vendorsToDisplay.length === 0) {
+                vendorListDiv.innerHTML = '<p class="no-vendors">No matching vendors found.</p>';
+                return;
+            }
+
+            vendorsToDisplay.forEach(vendor => {
+                const vendorCard = document.createElement('div');
+                vendorCard.className = 'vendor-card';
+                // Use a closure to capture vendor.id correctly for navigation
+                vendorCard.onclick = (function(id) {
+                    return function() {
+                        window.location.href = `/vendor/${id}`;
+                    };
+                })(vendor.id);
+
+                let bookmarkedHtml = '';
+                if (vendor.is_bookmarked) {
+                    bookmarkedHtml = '<p style="color: #007bff; font-weight: bold; font-size: 0.85em;">Bookmarked!</p>';
+                }
+
+                let directionsButtonHtml = '';
+                // Only show directions button if both user and vendor have valid locations
+                if (userLat && userLng && vendor.latitude && vendor.longitude && !isNaN(userLat) && !isNaN(userLng) && !isNaN(vendor.latitude) && !isNaN(vendor.longitude)) {
+                    directionsButtonHtml = `
+                        <button class="directions-button" onclick="event.stopPropagation(); getDirections(${vendor.latitude}, ${vendor.longitude});">
+                            Get Directions
+                        </button>
+                    `;
+                }
+
+                // Online/Offline status indicator
+                const statusClass = vendor.is_online ? 'online' : 'offline';
+                const statusText = vendor.is_online ? 'Online' : 'Offline';
+
+                // Use innerHTML directly, as the JSON is now correctly escaped by Flask's tojson
+                vendorCard.innerHTML = `
+                    <h3>
+                        <span>${vendor.shop_name || 'Unnamed Shop'}</span>
+                        <span class="vendor-status ${statusClass}">${statusText}</span>
+                    </h3>
+                    <p>${vendor.description || 'No description available.'}</p>
+                    <p>Cuisine: ${vendor.food_type || 'N/A'}</p>
+                    <div class="info-row">
+                        <span>Distance: ${vendor.distance} km</span>
+                        <span class="rating">Rating: ${vendor.rating} &#9733;</span>
+                    </div>
+                    <p>Hours: ${vendor.working_hours_start || 'N/A'} - ${vendor.working_hours_end || 'N/A'}</p>
+                    ${bookmarkedHtml}
+                    ${directionsButtonHtml}
+                `;
+                vendorListDiv.appendChild(vendorCard);
+            });
+        }
+
+        /**
+         * Filters the vendor list based on search input.
+         */
+        vendorSearchInput.addEventListener('input', (event) => {
+            const searchTerm = event.target.value.toLowerCase();
+            const filteredVendors = allVendorsData.filter(vendor => {
+                const nameMatch = (vendor.shop_name || '').toLowerCase().includes(searchTerm);
+                const descriptionMatch = (vendor.description || '').toLowerCase().includes(searchTerm);
+                const foodTypeMatch = (vendor.food_type || '').toLowerCase().includes(searchTerm);
+                return nameMatch || descriptionMatch || foodTypeMatch;
+            });
+            renderVendorList(filteredVendors);
+            updateMapMarkers(filteredVendors); // Update map markers based on filtered list
+        });
+
+
+        /**
+         * Initializes the Google Map and places markers.
+         */
+        function initMap() {
+            const defaultLocation = { lat: 28.7041, lng: 77.1025 }; // Default to Delhi if user location not available
+
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: (userLat && userLng && !isNaN(userLat) && !isNaN(userLng)) ? { lat: userLat, lng: userLng } : defaultLocation,
+                zoom: 13,
+                mapId: 'e9f0c2aa4ef0cfacc662c3ad' 
+            });
+
+            // Add user marker if location is available and valid
+            if (userLat && userLng && !isNaN(userLat) && !isNaN(userLng)) {
+                userMarker = new google.maps.Marker({
+                    position: { lat: userLat, lng: userLng },
+                    map: map,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 10,
+                        fillColor: '#007bff',
+                        fillOpacity: 0.8,
+                        strokeWeight: 0
+                    },
+                    title: 'Your Location'
+                });
+            }
+
+            // Initial rendering of vendor list and map markers
+            renderVendorList(allVendorsData);
+            updateMapMarkers(allVendorsData);
+        }
+
+        /**
+         * Updates markers on the map based on the provided list of vendors.
+         * @param {Array} vendorsToMap - The array of vendor objects to display markers for.
+         */
+        function updateMapMarkers(vendorsToMap) {
+            // Clear existing vendor markers
+            for (const id in vendorMarkers) {
+                if (vendorMarkers.hasOwnProperty(id)) {
+                    vendorMarkers[id].setMap(null);
+                    delete vendorMarkers[id];
+                }
+            }
+
+            vendorsToMap.forEach(vendor => {
+                // Only add marker if vendor has a valid location
+                if (vendor.latitude && vendor.longitude && !isNaN(vendor.latitude) && !isNaN(vendor.longitude)) {
+                    const marker = new google.maps.Marker({
+                        position: { lat: vendor.latitude, lng: vendor.longitude },
+                        map: map,
+                        title: vendor.shop_name,
+                        icon: {
+                            url: vendor.is_online ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' // Green for online, Red for offline
+                        }
+                    });
+
+                    const infoWindow = new google.maps.InfoWindow({
+                        content: `
+                            <h3>${vendor.shop_name} <span class="vendor-status ${vendor.is_online ? 'online' : 'offline'}">${vendor.is_online ? 'Online' : 'Offline'}</span></h3>
+                            <p>${vendor.description || 'No description available.'}</p>
+                            <p>Cuisine: ${vendor.food_type || 'N/A'}</p>
+                            <p>Distance: ${vendor.distance} km</p>
+                            <p>Rating: ${vendor.rating} &#9733;</p>
+                            <p>Hours: ${vendor.working_hours_start || 'N/A'} - ${vendor.working_hours_end || 'N/A'}</p>
+                            <a href="/vendor/${vendor.id}">View Details</a>
+                            <br>
+                            ${(userLat && userLng && !isNaN(userLat) && !isNaN(userLng)) ? 
+                                `<button class="directions-button" onclick="getDirections(${vendor.latitude}, ${vendor.longitude});">Get Directions</button>` : ''}
+                        `
+                    });
+
+                    marker.addListener('click', () => {
+                        infoWindow.open(map, marker);
+                    });
+
+                    vendorMarkers[vendor.id] = marker; // Store marker
+                }
+            });
+        }
+
+        /**
+         * Opens Google Maps directions in a new tab.
+         * @param {number} destLat - Destination latitude.
+         * @param {number} destLng - Destination longitude.
+         */
+        function getDirections(destLat, destLng) {
+            if (userLat && userLng && !isNaN(userLat) && !isNaN(userLng)) {
+                const origin = `${userLat},${userLng}`;
+                const destination = `${destLat},${destLng}`;
+                const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
+                window.open(googleMapsUrl, '_blank');
+            } else {
+                alert('Your location is not available to get directions. Please enable location services in your profile.');
+            }
+        }
+    </script>
+</body>
+</html>

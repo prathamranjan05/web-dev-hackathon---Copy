@@ -1,0 +1,15 @@
+twilio : H4VSYPQHLDEYBDK9VHBWXVDV
+
+mapId: 'e9f0c2aa4ef0cfacc662c3ad'
+
+google map api key = AIzaSyCt3E_oxGjQHEOa5q2Xsj3aVSvN74VkZMY
+
+const firebaseConfig = {
+            apiKey: "AIzaSyAm-v7W2QDHz2FSfjLnsNRZIWUpvKRkdM8",
+            authDomain: "streetvendorwebapp.firebaseapp.com",
+            projectId: "streetvendorwebapp",
+            storageBucket: "streetvendorwebapp.firebasestorage.app",
+            messagingSenderId: "255315510398",
+            appId: "1:255315510398:web:ca089b5b027afd8796842f",
+            measurementId: "G-13BBXHH1B7"
+        };
