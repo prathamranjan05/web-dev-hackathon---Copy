@@ -7,14 +7,12 @@ import json # Ensure json module is imported
 from math import radians, sin, cos, sqrt, atan2 # For distance calculation
 from flask_cors import CORS
 
-app = Flask(__name__)
-CORS(app,supports_credentials=True)
-
 # Determine the template path dynamically for better portability
 template_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
 print("TEMPLATE PATH →", template_path)
-
 app = Flask(__name__, template_folder=template_path)
+CORS(app,supports_credentials=True)
+
 
 print("TEMPLATE FOLDER:", app.jinja_loader.searchpath)
 
